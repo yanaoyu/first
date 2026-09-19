@@ -80,7 +80,13 @@ function step() {
     updateStatus();
     return;
   }
-  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    // 判断这一步是否吃到食物
+  const eats = (head.x === food.x && head.y === food.y);
+  
+  // 核心修复：如果不吃食物，尾巴会移动，所以忽略最后一节尾巴；如果吃到食物，尾巴不移动，必须检查全部身体
+  const bodyToCheck = eats ? snake : snake.slice(0, -1);
+  
+  if (bodyToCheck.some(s => s.x === head.x && s.y === head.y)) {
     gameOver = true;
     if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }
     updateStatus();
