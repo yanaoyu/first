@@ -5,20 +5,49 @@
   <meta charset="UTF-8">
   <title>贪吃蛇 · 阶段二 AI 自动演示</title>
   <style>
+    /* 深色主题（默认） */
+    body[data-theme="dark"] {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --text: #eee;
+      --accent: #0c93e7;
+      --muted: #888;
+      --btn-bg: #0f3460;
+      --btn-text: #e8f4ff;
+      --border: #2a3a5e;
+      --modal-bg: #16213e;
+      --row-alt: #1b294a;
+    }
+
+    /* 浅色主题 */
+    body[data-theme="light"] {
+      --bg: #eef1f6;
+      --panel: #ffffff;
+      --text: #1f2430;
+      --accent: #0a7fd1;
+      --muted: #6b7280;
+      --btn-bg: #e3eefc;
+      --btn-text: #0a3d78;
+      --border: #cfd8e6;
+      --modal-bg: #ffffff;
+      --row-alt: #f3f6fb;
+    }
+
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      background: #1a1a2e;
-      color: #eee;
+      background: var(--bg);
+      color: var(--text);
       font-family: Segoe UI, sans-serif;
       margin: 0;
       padding: 20px;
+      transition: background 0.2s, color 0.2s;
     }
 
     h1 {
       margin: 10px;
-      color: #0c93e7;
+      color: var(--accent);
     }
 
     #status {
@@ -26,42 +55,227 @@
       font-size: 18px;
     }
 
+    .toolbar {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .toolbar button {
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: filter 0.15s, transform 0.05s;
+    }
+
+    .toolbar button:hover {
+      filter: brightness(1.15);
+    }
+
+    .toolbar button:active {
+      transform: translateY(1px);
+    }
+
     canvas {
-      background: #16213e;
+      background: var(--panel);
       border-radius: 12px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
 
     #tip {
-      color: #888;
+      color: var(--muted);
       margin-top: 10px;
+    }
+
+    /* 战绩弹窗 */
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      background: var(--modal-bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 26px;
+      min-width: 340px;
+      max-width: 90vw;
+      max-height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-box h2 {
+      margin: 0 0 14px;
+      color: var(--accent);
+      font-size: 20px;
+    }
+
+    .record-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+
+    .record-row:nth-child(odd) {
+      background: var(--row-alt);
+    }
+
+    .record-row .win {
+      color: #22c55e;
+      font-weight: bold;
+    }
+
+    .record-row .lose {
+      color: #e94560;
+      font-weight: bold;
+    }
+
+    .record-row .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #emptyHistory {
+      color: var(--muted);
+      padding: 10px;
+    }
+
+    #closeHistory {
+      margin-top: 16px;
+      width: 100%;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 14px;
+      cursor: pointer;
     }
   </style>
 </head>
 
-<body>
+<body data-theme="dark">
   <h1>贪吃蛇 · AI 自动演示</h1>
-  <div id="status">得分：0 ｜ 最高分：0 ｜ 已吃：0/15</div>
+  <div id="status">得分：0 ｜ 最高分：0 ｜ 局数：0 ｜ 已吃：0/15</div>
+  <div class="toolbar">
+    <button id="restartBtn" type="button">重开一局</button>
+    <button id="themeBtn" type="button">切换浅色</button>
+    <button id="historyBtn" type="button">查看战绩</button>
+    <button id="resetBtn" type="button">重置</button>
+  </div>
   <canvas id="game" width="400" height="400"></canvas>
   <div id="tip">AI 自动运行 ｜ 按 A 切换手动/自动 ｜ 空格暂停 ｜ R 重开</div>
+
+  <div id="historyModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>最近 10 局战绩</h2>
+      <div id="historyList"></div>
+      <button id="closeHistory" type="button">关闭</button>
+    </div>
+  </div>
   <script>
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     const box = 20;
     const GRID = 20;
     let snake, dir, food, score, highScore, paused, gameOver, aiMode, eaten;
+    let roundEnded = false;          // 本局是否已结束（防止重复记录）
+    let gamesPlayed = 0;             // 总局数（跨刷新保留）
+    let history = [];                // 最近 10 局战绩
 
+    // 两套主题的画布配色（DOM 配色由 CSS 变量控制）
+    const THEMES = {
+      dark: { food: '#e94560', head: '#0c93e7', body: '#4ea8de', overlay: 'rgba(0,0,0,0.65)', text: '#ffffff', success: '#27e85f' },
+      light: { food: '#d63352', head: '#0a82d4', body: '#79b8e6', overlay: 'rgba(0,0,0,0.55)', text: '#ffffff', success: '#2ecc40' }
+    };
+    let theme = localStorage.getItem('snakeTheme') || 'dark';
+    let colors = THEMES[theme] || THEMES.dark;
+
+    function applyTheme(t) {
+      theme = t;
+      colors = THEMES[t] || THEMES.dark;
+      document.body.dataset.theme = t;
+      localStorage.setItem('snakeTheme', t);
+      document.getElementById('themeBtn').textContent = t === 'dark' ? '切换浅色' : '切换深色';
+    }
+
+    function loadStats() {
+      highScore = Number(localStorage.getItem('snakeHigh') || 0);
+      gamesPlayed = Number(localStorage.getItem('snakeGames') || 0);
+      try {
+        history = JSON.parse(localStorage.getItem('snakeHistory') || '[]');
+        if (!Array.isArray(history)) history = [];
+      } catch (e) {
+        history = [];
+      }
+    }
+
+    function saveStats() {
+      localStorage.setItem('snakeHigh', highScore);
+      localStorage.setItem('snakeGames', gamesPlayed);
+      localStorage.setItem('snakeHistory', JSON.stringify(history));
+    }
+
+    // 仅开启新一局；最高分、局数、战绩均不清零
     function init() {
       snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
       dir = { x: 1, y: 0 };
       score = 0;
-      highScore = Number(localStorage.getItem('snakeHigh') || 0);
       paused = false;
       gameOver = false;
+      roundEnded = false;
       aiMode = true;
       eaten = 0;
       placeFood();
       updateStatus();
+    }
+
+    // 一局结束：success=true 表示连续吃满 15 个
+    function endRound(success) {
+      if (roundEnded) return;
+      roundEnded = true;
+      if (!success) gameOver = true;
+      if (score > highScore) highScore = score;
+      gamesPlayed++;
+      history.push({
+        no: gamesPlayed,
+        success: success,
+        score: score,
+        time: new Date().toLocaleString()
+      });
+      if (history.length > 10) history.shift();
+      saveStats();
+      updateStatus();
+    }
+
+    // 重置全部统计数据（最高分 / 局数 / 战绩），并开启新一局
+    function resetAll() {
+      if (!confirm('确定清空最高分、局数和最近 10 局战绩吗？')) return;
+      highScore = 0;
+      gamesPlayed = 0;
+      history = [];
+      saveStats();
+      init();
     }
 
     function placeFood() {
@@ -71,44 +285,45 @@
     }
 
     function updateStatus() {
-      document.getElementById('status').textContent = `得分：${score} ｜ 最高分：${highScore} ｜ 已吃：${eaten}/15`;
+      document.getElementById('status').textContent =
+        `得分：${score} ｜ 最高分：${highScore} ｜ 局数：${gamesPlayed} ｜ 已吃：${eaten}/15`;
     }
 
     function draw() {
       ctx.clearRect(0, 0, 400, 400);
-      ctx.fillStyle = '#e94560';
+      ctx.fillStyle = colors.food;
       ctx.fillRect(food.x * box, food.y * box, box - 2, box - 2);
       snake.forEach((s, i) => {
-        ctx.fillStyle = i === 0 ? '#0c93e7' : '#4ea8de';
+        ctx.fillStyle = i === 0 ? colors.head : colors.body;
         ctx.fillRect(s.x * box, s.y * box, box - 2, box - 2);
       });
       if (gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillStyle = colors.overlay;
         ctx.fillRect(0, 0, 400, 400);
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = colors.text;
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('游戏结束', 200, 190);
         ctx.font = '18px sans-serif';
         ctx.fillText('按 R 重新开始', 200, 230);
       }
-      if (paused && !gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      if (paused && !roundEnded) {
+        ctx.fillStyle = colors.overlay;
         ctx.fillRect(0, 0, 400, 400);
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = colors.text;
         ctx.font = '24px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('已暂停', 200, 210);
       }
       if (eaten >= 15 && !gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillStyle = colors.overlay;
         ctx.fillRect(0, 0, 400, 400);
-        ctx.fillStyle = '#0f0';
+        ctx.fillStyle = colors.success;
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('AI 已连续吃 15 个！', 200, 190);
         ctx.font = '18px sans-serif';
-        ctx.fillStyle = '#fff';
+        ctx.fillStyle = colors.text;
         ctx.fillText('按 R 重新开始', 200, 230);
       }
     }
@@ -161,7 +376,7 @@
       }
       return visited.size;
     }
-  
+
     // 评估单步移动后的安全状态
     function evaluateMove(d) {
       const head = snake[0];
@@ -237,25 +452,21 @@
     }
 
     function step() {
-      if (paused || gameOver || eaten >= 15) return;
+      if (paused || roundEnded) return;
       if (aiMode) {
         const d = aiMove();
         if (d.x !== 0 || d.y !== 0) dir = d;
       }
       const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
       if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
-        gameOver = true;
-        if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }
-        updateStatus();
+        endRound(false);
         return;
       }
       // 不吃食物时尾巴会移走，所以撞到尾巴不算死亡；吃食物时尾巴不动，必须检查全身
       const eatsNow = (head.x === food.x && head.y === food.y);
       const bodyToCheck = eatsNow ? snake : snake.slice(0, -1);
       if (bodyToCheck.some(s => s.x === head.x && s.y === head.y)) {
-        gameOver = true;
-        if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }
-        updateStatus();
+        endRound(false);
         return;
       }
       snake.unshift(head);
@@ -265,14 +476,39 @@
         if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }
         updateStatus();
         placeFood();
+        if (eaten >= 15) endRound(true);
       } else {
         snake.pop();
       }
     }
 
+    // 渲染最近 10 局战绩（最新的在最上面）
+    function renderHistory() {
+      const boxEl = document.getElementById('historyList');
+      if (history.length === 0) {
+        boxEl.innerHTML = '<div id="emptyHistory">暂无战绩，快去玩一局吧。</div>';
+        return;
+      }
+      boxEl.innerHTML = history.slice().reverse().map(r => {
+        const result = r.success
+          ? '<span class="win">成功（15/15）</span>'
+          : '<span class="lose">失败</span>';
+        return `<div class="record-row">
+          <span>第 ${r.no} 局 ${result}</span>
+          <span>得分 ${r.score}</span>
+          <span class="meta">${r.time}</span>
+        </div>`;
+      }).join('');
+    }
+
+    const historyModal = document.getElementById('historyModal');
+
     document.addEventListener('keydown', e => {
       if (e.key === 'a' || e.key === 'A') aiMode = !aiMode;
-      if (e.key === ' ' && !gameOver && eaten < 15) paused = !paused;
+      if (e.key === ' ' && !roundEnded) {
+        paused = !paused;
+        e.preventDefault();
+      }
       if (e.key === 'r' || e.key === 'R') init();
       if (!aiMode) {
         if (e.key === 'ArrowUp' && dir.y === 0) dir = { x: 0, y: -1 };
@@ -282,6 +518,24 @@
       }
     });
 
+    document.getElementById('restartBtn').addEventListener('click', init);
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      applyTheme(theme === 'dark' ? 'light' : 'dark');
+    });
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      renderHistory();
+      historyModal.classList.remove('hidden');
+    });
+    document.getElementById('closeHistory').addEventListener('click', () => {
+      historyModal.classList.add('hidden');
+    });
+    historyModal.addEventListener('click', e => {
+      if (e.target === historyModal) historyModal.classList.add('hidden');
+    });
+
+    loadStats();
+    applyTheme(theme);
     init();
     setInterval(() => { step(); draw(); }, 80);
   </script>
