@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
   <meta charset="UTF-8">
   <title>贪吃蛇 · 阶段二 AI 自动演示</title>
@@ -167,8 +168,63 @@
       font-size: 14px;
       cursor: pointer;
     }
+
+    #gameArea {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    #speedPanel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      padding: 14px 16px;
+      width: 120px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #speedLabel {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    #speedValue {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    #speedInput {
+      width: 100%;
+      box-sizing: border-box;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 14px;
+      text-align: center;
+    }
+
+    #speedApplyBtn {
+      width: 100%;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px;
+      font-size: 14px;
+      cursor: pointer;
+    }
   </style>
 </head>
+
 <body data-theme="dark">
   <h1>贪吃蛇 · AI 自动演示</h1>
   <div id="status">得分：0 ｜ 最高分：0 ｜ 局数：0 ｜ 已吃：0/15</div>
@@ -180,7 +236,15 @@
     <button id="historyBtn" type="button">查看战绩</button>
     <button id="resetBtn" type="button">重置</button>
   </div>
-  <canvas id="game" width="400" height="400"></canvas>
+  <div id="gameArea">
+    <canvas id="game" width="400" height="400"></canvas>
+    <div id="speedPanel">
+      <div id="speedLabel">当前倍速</div>
+      <div id="speedValue">×1</div>
+      <input id="speedInput" type="number" min="0.02" step="1" value="1">
+      <button id="speedApplyBtn" type="button">应用</button>
+    </div>
+  </div>
   <div id="tip">AI 自动运行 ｜ 中键或按钮 切手动/自动 ｜ 空格暂停 ｜ R 重开 ｜ 按住左键加速 右键按住=超级加速</div>
   <div id="historyModal" class="modal hidden">
     <div class="modal-box">
@@ -198,6 +262,7 @@
     let fastMode = false;
     let spfastMode = false;
     let gameTimer;
+    let userSpeed = 80;
     let lastMouseDownTime = 0;
     let pendingDirs = [];
     let taskMode = (localStorage.getItem('snakeTaskMode') || 'task') === 'task';
@@ -569,10 +634,37 @@
       } else if (fastMode) {
         speed = 40;
       } else {
-        speed = 80;
+        speed = userSpeed;
       }
+      updateSpeedDisplay(speed);
       gameTimer = setInterval(() => { step(); draw(); }, speed);
     }
+
+    function formatMult(m) {
+      return Number.isInteger(m) ? String(m) : String(Math.round(m * 100) / 100);
+    }
+
+    function updateSpeedDisplay(speed) {
+      document.getElementById('speedValue').textContent = '×' + formatMult(80 / speed);
+    }
+
+    function applyInputSpeed() {
+      const input = document.getElementById('speedInput');
+      const mult = parseFloat(input.value);
+      if (!isFinite(mult) || mult <= 0) {
+        input.value = formatMult(80 / userSpeed);
+        return;
+      }
+      userSpeed = Math.max(1, 80 / mult);
+      startLoop();
+      input.value = formatMult(80 / userSpeed);
+    }
+
+    document.getElementById('speedApplyBtn').addEventListener('click', applyInputSpeed);
+    document.getElementById('speedInput').addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') applyInputSpeed();
+    });
 
     function toggleAiMode() {
       aiMode = !aiMode;
@@ -593,4 +685,5 @@
     startLoop();
   </script>
 </body>
+
 </html>
