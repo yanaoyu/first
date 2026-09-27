@@ -1,0 +1,1154 @@
+<!-- ===================================================================== -->
+<!-- 📖 新手导读：AI 自动贪吃蛇（snake_ai.html）                           -->
+<!--                                                                       -->
+<!-- 这个文件由三大部分组成：                                               -->
+<!--   第一部分  HTML（骨架）：网页上“有什么东西”                          -->
+<!--   第二部分  CSS（衣服）：这些东西“长什么样”——深/浅两套皮肤            -->
+<!--   第三部分  JavaScript（大脑）：这些东西“怎么动”                      -->
+<!--       · 蛇的移动、吃食物、判输赢                                       -->
+<!--       · AI 大脑：电脑每一步自己决定往哪走（BFS 寻路）                  -->
+<!--       · 倍速面板：显示当前倍速、输入数字改倍速                         -->
+<!--                                                                       -->
+<!-- 💡 注释写法说明：                                                     -->
+<!--   · 每行代码上方或右侧的灰色文字都是注释，电脑运行时会忽略它们         -->
+<!--   · HTML 注释格式：<!-- 文字 --> -->
+<!--   · CSS/JS 注释格式：/* 文字 */（块）或 // 文字（单行）                -->
+<!-- ===================================================================== -->
+
+
+<!-- ========================= 第一部分：HTML 骨架 ======================== -->
+
+<!-- <!DOCTYPE html> 必须写在第一行：告诉浏览器“这是 HTML5 网页” -->
+<!DOCTYPE html>
+
+<!-- <html> 是整个网页的根标签（最大的盒子，所有内容都装在它里面） -->
+<!-- lang="zh-CN"：网页主要语言是简体中文 -->
+<html lang="zh-CN">
+
+<!-- <head> 头部：这里的东西大多“不直接显示”，是给浏览器看的配置 -->
+
+<head>
+
+  <!-- <meta> 元信息标签；charset="UTF-8" 指定文字编码，中文才不会乱码 -->
+  <meta charset="UTF-8">
+
+  <!-- <title>：浏览器标签页上显示的标题 -->
+  <title>贪吃蛇 · 阶段二 AI 自动演示</title>
+
+  <!-- <style> 标签内部写 CSS 代码，CSS 负责“长什么样” -->
+  <style>
+    /* =================================================================== */
+    /* 第二部分：CSS 样式                                                  */
+    /* =================================================================== */
+
+    /* ------------------------------------------------------------------- */
+    /* 2.1 深色主题（默认皮肤）                                            */
+    /*                                                                     */
+    /* body[data-theme="dark"] 是“属性选择器”：                            */
+    /*   选中 <body> 标签里 data-theme 属性等于 "dark" 的那个元素          */
+    /*                                                                     */
+    /* --bg 这种以两个减号 -- 开头的名字叫“CSS 变量”（自定义属性）：       */
+    /*   它像一个装颜色的盒子，别处用 var(--bg) 就能取出来用；             */
+    /*   换皮肤时只改这一处，全页面颜色一起变。                            */
+    /* ------------------------------------------------------------------- */
+    body[data-theme="dark"] {
+      --bg: #1a1a2e;
+      /* 页面大背景：深蓝紫色（#开头是十六进制颜色） */
+      --panel: #16213e;
+      /* 面板/画布底色：比背景稍浅的深蓝 */
+      --text: #eee;
+      /* 普通文字：浅灰（#eee 是 #eeeeee 的简写） */
+      --accent: #0c93e7;
+      /* 强调色（标题等）：亮蓝色 */
+      --muted: #888;
+      /* 次要文字：灰色（提示语，不抢眼） */
+      --btn-bg: #0f3460;
+      /* 按钮背景：深蓝色 */
+      --btn-text: #e8f4ff;
+      /* 按钮文字：淡蓝白色 */
+      --border: #2a3a5e;
+      /* 边框/分割线：暗蓝色 */
+      --modal-bg: #16213e;
+      /* 弹窗内部背景 */
+      --row-alt: #1b294a;
+      /* 战绩列表隔行变色用的背景 */
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 2.2 浅色主题（另一套皮肤）                                          */
+    /* 变量名和深色版完全一样，只是颜色值不同——这就是“换皮肤”的原理       */
+    /* ------------------------------------------------------------------- */
+    body[data-theme="light"] {
+      --bg: #eef1f6;
+      /* 页面大背景：浅灰蓝 */
+      --panel: #ffffff;
+      /* 面板/画布：纯白（#fff） */
+      --text: #1f2430;
+      /* 文字：近黑色（浅底上要用深色字） */
+      --accent: #0a7fd1;
+      /* 强调色：蓝色 */
+      --muted: #6b7280;
+      /* 次要文字：中灰色 */
+      --btn-bg: #e3eefc;
+      /* 按钮背景：淡蓝色 */
+      --btn-text: #0a3d78;
+      /* 按钮文字：深蓝色 */
+      --border: #cfd8e6;
+      /* 边框：浅灰蓝 */
+      --modal-bg: #ffffff;
+      /* 弹窗背景：白色 */
+      --row-alt: #f3f6fb;
+      /* 战绩隔行变色：极浅蓝灰 */
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 2.3 整个页面 body 的布局（深浅色都适用，因为颜色用的是变量）        */
+    /* ------------------------------------------------------------------- */
+    body {
+      display: flex;
+      /* 把 body 变成 Flex 弹性盒子，方便排列子元素 */
+      flex-direction: column;
+      /* 子元素从上到下竖着排 */
+      align-items: center;
+      /* 子元素在横向上居中 */
+      background: var(--bg);
+      /* 背景色：从变量 --bg 取 */
+      color: var(--text);
+      /* 文字颜色：从变量 --text 取 */
+      font-family: Segoe UI, sans-serif;
+      /* 字体：优先 Segoe UI，没有就用系统无衬线体 */
+      margin: 0;
+      /* 去掉 body 默认外边距，让背景铺满窗口 */
+      padding: 20px;
+      /* 内容与窗口边缘留 20px 内边距 */
+      transition: background 0.2s, color 0.2s;
+      /* 换主题时颜色 0.2 秒平滑过渡 */
+    }
+
+    /* h1：一级标题的样式 */
+    h1 {
+      margin: 10px;
+      /* 四周留 10px 外边距 */
+      color: var(--accent);
+      /* 标题用强调色 */
+    }
+
+    /* #status 是 id 选择器：选中 id="status" 的元素（# 表示 id，id 全页唯一） */
+    #status {
+      margin: 8px;
+      /* 四周留 8px */
+      font-size: 18px;
+      /* 字号 18 像素 */
+    }
+
+    /* .toolbar 是 class 类选择器（. 点号开头），类可以给多个元素复用 */
+    .toolbar {
+      margin: 10px 0;
+      /* 上下 10px、左右 0 */
+      display: flex;
+      /* 按钮们用 Flex 排列 */
+      gap: 10px;
+      /* 按钮之间留 10px 缝隙 */
+      flex-wrap: wrap;
+      /* 窗口太窄时允许换行，不被挤变形 */
+      justify-content: center;
+      /* 整行横向居中 */
+    }
+
+    /* .toolbar button：选中“工具栏里面的按钮”（空格 = 后代选择器，表示“里面的”） */
+    .toolbar button {
+      background: var(--btn-bg);
+      /* 按钮背景，取变量 */
+      color: var(--btn-text);
+      /* 按钮文字色 */
+      border: 1px solid var(--border);
+      /* 边框：1px 粗、实线、颜色取变量 */
+      border-radius: 8px;
+      /* 圆角 8px：直角修成圆角 */
+      padding: 7px 4px;
+      /* 内边距：上下 7px、左右 4px */
+      font-size: 14px;
+      /* 按钮文字大小 */
+      cursor: pointer;
+      /* 鼠标移上去时光标变小手，提示可点 */
+      transition: filter 0.15s, transform 0.05s;
+      /* 悬停/按下的过渡动画 */
+    }
+
+    /* :hover 伪类：鼠标“悬停但没按下”时生效 */
+    .toolbar button:hover {
+      filter: brightness(1.15);
+      /* 亮度提高到 1.15 倍，按钮亮起来 */
+    }
+
+    /* :active 伪类：鼠标“正按住”的那一瞬间生效 */
+    .toolbar button:active {
+      transform: translateY(1px);
+      /* 整体下移 1px，模拟按下去的手感 */
+    }
+
+    /* canvas：画布样式（游戏画面就画在它上面） */
+    canvas {
+      background: var(--panel);
+      /* 画布底色取面板变量 */
+      border-radius: 12px;
+      /* 圆角 12px */
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      /* 阴影：向下4px、模糊20px、40%黑 */
+      /* rgba(红,绿,蓝,透明度)：前三个 0 代表黑色，最后 0.4 是 40% 不透明 */
+    }
+
+    /* #tip：画布下方的灰色操作提示 */
+    #tip {
+      color: var(--muted);
+      /* 提示用灰色，不抢戏 */
+      margin-top: 10px;
+      /* 只给上边距，与画布隔开 */
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 2.5 战绩弹窗（点“查看战绩”时出现的对话框）                          */
+    /* ------------------------------------------------------------------- */
+
+    /* .modal：遮罩层，一层半透明黑背景盖在整个页面上 */
+    .modal {
+      position: fixed;
+      /* 固定定位：相对浏览器窗口，页面滚动它也不动 */
+      inset: 0;
+      /* 上右下左都贴 0 = 铺满窗口（inset 是简写） */
+      background: rgba(0, 0, 0, 0.5);
+      /* 半透明黑：50% 透明，能隐约看到后面 */
+      display: flex;
+      /* 用 Flex 让里面的对话框居中 */
+      align-items: center;
+      /* 对话框纵向居中 */
+      justify-content: center;
+      /* 对话框横向居中 */
+      z-index: 10;
+      /* 图层高度：数值越大越靠上，保证弹窗盖住画布 */
+    }
+
+    /* .modal.hidden：同时有 modal 和 hidden 两个类时生效 */
+    .modal.hidden {
+      display: none;
+      /* 完全不显示；JS 删掉 hidden 类时弹窗才出现 */
+    }
+
+    /* .modal-box：弹窗中间真正的“对话框盒子” */
+    .modal-box {
+      background: var(--modal-bg);
+      /* 对话框底色 */
+      color: var(--text);
+      /* 对话框文字色 */
+      border: 1px solid var(--border);
+      /* 1px 边框 */
+      border-radius: 14px;
+      /* 圆角 14px */
+      padding: 22px 26px;
+      /* 上下 22px、左右 26px，文字不贴边 */
+      min-width: 340px;
+      /* 最小宽度 340px */
+      max-width: 90vw;
+      /* 最大不超过窗口宽的 90%（vw=视口宽度%） */
+      max-height: 70vh;
+      /* 最大不超过窗口高的 70%（vh=视口高度%） */
+      overflow-y: auto;
+      /* 内容超高时纵向出现滚动条 */
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      /* 又大又柔的阴影 */
+    }
+
+    /* 弹窗里的 h2 标题 */
+    .modal-box h2 {
+      margin: 0 0 14px;
+      /* 只保留下边距 14px */
+      color: var(--accent);
+      /* 标题用强调色 */
+      font-size: 20px;
+      /* 字号 20px */
+    }
+
+    /* .record-row：战绩列表里的每一行 */
+    .record-row {
+      display: flex;
+      /* 用 Flex 横排 */
+      justify-content: space-between;
+      /* 各段均匀分散、两端对齐 */
+      gap: 14px;
+      /* 段之间留 14px */
+      padding: 8px 10px;
+      /* 内边距 */
+      border-bottom: 1px solid var(--border);
+      /* 下边一条分割线 */
+      font-size: 14px;
+    }
+
+    /* :nth-child(odd) 伪类：选中“第奇数个”孩子（第1、3、5...行）实现隔行变色 */
+    .record-row:nth-child(odd) {
+      background: var(--row-alt);
+    }
+
+    /* 战绩行里的“成功”标记 */
+    .record-row .win {
+      color: #22c55e;
+      /* 绿色 */
+      font-weight: bold;
+      /* 粗体 */
+    }
+
+    /* 战绩行里的“失败”标记 */
+    .record-row .lose {
+      color: #e94560;
+      /* 红色 */
+      font-weight: bold;
+    }
+
+    /* 战绩行里的时间等附属信息 */
+    .record-row .meta {
+      color: var(--muted);
+      /* 灰色 */
+      font-size: 12px;
+    }
+
+    /* 没有战绩时显示的提示文字 */
+    #emptyHistory {
+      color: var(--muted);
+      padding: 10px;
+    }
+
+    /* 弹窗里的“关闭”按钮 */
+    #closeHistory {
+      margin-top: 16px;
+      width: 100%;
+      /* 宽度占满 */
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 2.6 游戏区 + 倍速面板（画布右边那个小盒子）                          */
+    /* ------------------------------------------------------------------- */
+
+    /* #gameArea：装着“画布 + 倍速面板”的横向容器 */
+    #gameArea {
+      display: flex;
+      /* Flex 横排：画布在左，面板在右 */
+      align-items: center;
+      /* 两者垂直居中对齐 */
+      justify-content: center;
+      /* 整行横向居中 */
+      gap: 20px;
+      /* 画布与面板之间留 20px */
+    }
+
+    /* #speedPanel：倍速面板本体 */
+    #speedPanel {
+      background: var(--panel);
+      /* 底色与画布一致 */
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+      padding: 14px 16px;
+      width: 120px;
+      /* 固定宽 120px */
+      display: flex;
+      flex-direction: column;
+      /* 内部竖着排 */
+      align-items: center;
+      /* 内部横向居中 */
+      gap: 8px;
+      /* 每行间距 8px */
+    }
+
+    /* 面板最上面的“当前倍速”小标题 */
+    #speedLabel {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    /* 面板中间大大的“×1”倍速数字 */
+    #speedValue {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    /* 输入倍速数字的输入框 */
+    #speedInput {
+      width: 100%;
+      box-sizing: border-box;
+      /* 让 width:100% 包含边框和内边距，不会撑出盒子 */
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      font-size: 14px;
+      text-align: center;
+      /* 输入的数字居中显示 */
+    }
+
+    /* “应用”按钮 */
+    #speedApplyBtn {
+      width: 100%;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 7px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<!-- ===================================================================== -->
+<!-- HTML body：页面上真正能看到的内容                                     -->
+<!-- data-theme="dark"：body 自带的属性，CSS 靠它决定用哪套皮肤            -->
+<!-- ===================================================================== -->
+
+<body data-theme="dark">
+
+  <!-- h1：页面大标题 -->
+  <h1>贪吃蛇 · AI 自动演示</h1>
+
+  <!-- 分数栏：JS 会不断修改这里的文字 -->
+  <div id="status">得分：0 ｜ 最高：0 ｜ 局数：0 ｜ 已吃：0/15</div>
+
+  <!-- 工具栏：一排按钮 -->
+  <div class="toolbar">
+    <button id="restartBtn" type="button">重开一局</button>
+    <button id="themeBtn" type="button">切换浅色</button>
+    <button id="modeBtn" type="button">切换无尽</button>
+    <button id="aiToggleBtn" type="button">切换手动</button>
+    <button id="historyBtn" type="button">查看战绩</button>
+    <button id="resetBtn" type="button">重置</button>
+    <!-- id 是给 JS 找元素用的名字；type="button" 防止按钮被当成提交按钮 -->
+  </div>
+
+  <!-- 游戏区：画布 + 倍速面板（CSS 让它们横排） -->
+  <div id="gameArea">
+    <!-- canvas 画布：width/height 是像素大小 400×400 -->
+    <canvas id="game" width="400" height="400"></canvas>
+    <!-- 倍速面板 -->
+    <div id="speedPanel">
+      <div id="speedLabel">当前倍速</div>
+      <div id="speedValue">×1</div>
+      <!-- input 输入框：type="number" 只让填数字；min 最小值；step 点上下箭头每次加减1；value 默认值 -->
+      <input id="speedInput" type="number" min="0.02" step="1" value="1">
+      <button id="speedApplyBtn" type="button">应用</button>
+    </div>
+  </div>
+
+  <!-- 操作提示 -->
+  <div id="tip">AI 自动运行 ｜ 中键或按钮 切手动/自动 ｜ 空格暂停 ｜ R 重开 ｜ 按住左键加速 右键按住=超级加速</div>
+
+  <!-- 战绩弹窗：class 同时带 modal 和 hidden，所以一开始看不见 -->
+  <div id="historyModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>最近 10 局战绩</h2>
+      <div id="historyList"></div>
+      <button id="closeHistory" type="button">关闭</button>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- 第三部分：JavaScript（大脑）——游戏全部规则都在这里                   -->
+  <!-- <script> 标签内部写 JS 代码                                          -->
+  <!-- ===================================================================== -->
+  <script>
+    /* ------------------------------------------------------------------- */
+    /* 4.1 找到画布、拿到画笔                                               */
+    /* ------------------------------------------------------------------- */
+
+    // document：代表整个网页的对象（DOM 树的入口）
+    // getElementById('game')：在网页里按 id 找元素，() 里的字符串是 id 名
+    // 找到后存进 const canvas；const 声明“不会再被重新赋值”的常量
+    const canvas = document.getElementById('game');
+
+    // canvas.getContext('2d')：向画布要一支“2D 画笔”，之后画图都用 ctx
+    const ctx = canvas.getContext('2d');
+
+    /* ------------------------------------------------------------------- */
+    /* 4.2 常量与变量区（游戏要用的数据都先在这里声明）                     */
+    /*                                                                     */
+    /* const = 常量，以后不会改                                            */
+    /* let   = 变量，以后可以随时改                                       */
+    /* 多个名字用逗号隔开 = 同时声明多个变量（先不赋值）                   */
+    /* ------------------------------------------------------------------- */
+
+    const box = 20;     // 每一格的像素大小 20×20
+    const GRID = 20;    // 棋盘每边 20 格（所以 400÷20=20，画布刚好用完）
+
+    let snake, dir, food, score, highScore, paused, gameOver, aiMode, eaten;
+    // snake：蛇身数组；dir：当前方向 {x,y}；food：食物坐标；score：本局得分
+    // highScore：最高分；paused：是否暂停；gameOver：是否撞死；aiMode：是否AI控制；eaten：已吃个数
+
+    let fastMode = false;    // 是否普通加速：false=否，true=是（true/false 叫布尔值）
+    let spfastMode = false;  // 是否超级加速
+    let gameTimer;           // 存放游戏定时器（闹钟）的编号，方便稍后销毁
+    let userSpeed = 80;      // 用户自定义“平时速度”：每步间隔 80 毫秒（=1倍速）
+    let lastMouseDownTime = 0;   // 上一次鼠标按下的时刻（用来检测双击）
+    let pendingDirs = [];    // 方向排队区：按键排进数组，走步时再采用（防止掉头）
+
+    // 读取上次保存的游戏模式：localStorage 是浏览器的“本地存档”，刷新也不丢
+    // getItem('snakeTaskMode') 读取存档；读不到时 || 后面的 'task' 当默认值
+    // 最后 === 'task' 比较：相等得到 true（任务模式），否则 false
+    let taskMode = (localStorage.getItem('snakeTaskMode') || 'task') === 'task';
+
+    let roundEnded = false;   // 本局是否已经结束（防止同一局被记录两次）
+    let gamesPlayed = 0;      // 总局数
+    let history = [];         // 战绩数组（最多存 10 局）
+
+    /* THEMES：两套“画布配色”。这是一个对象（用 {} 包起来的“名字:值”清单）*/
+    // 对象里还可以再套对象；冒号左边是属性名，右边是值，逗号分隔
+    const THEMES = {
+      dark: { food: '#e94560', head: '#0c93e7', body: '#4ea8de', overlay: 'rgba(0,0,0,0.65)', text: '#ffffff', success: '#27e85f' },
+      light: { food: '#d63352', head: '#0a82d4', body: '#79b8e6', overlay: 'rgba(0,0,0,0.55)', text: '#ffffff', success: '#2ecc40' }
+      // food=食物色 head=蛇头色 body=蛇身色 overlay=遮罩色 text=文字色 success=成功色
+    };
+
+    // 当前主题：读存档，读不到默认 'dark'
+    let theme = localStorage.getItem('snakeTheme') || 'dark';
+
+    // 当前画布配色：THEMES[theme] 用方括号按名字取对象里的属性；取不到就 || 用 dark
+    let colors = THEMES[theme] || THEMES.dark;
+
+    /* ------------------------------------------------------------------- */
+    /* 4.3 主题切换                                                         */
+    /* ------------------------------------------------------------------- */
+
+    // function 定义函数；applyTheme 是函数名；(t) 是参数（调用时传进来的数据）
+    // { ... } 大括号里是函数体，调用函数时才会执行
+    function applyTheme(t) {
+      theme = t;                                    // 记住当前主题
+      colors = THEMES[t] || THEMES.dark;            // 换成对应配色
+      document.body.dataset.theme = t;              // 改 body 的 data-theme 属性，CSS 立刻换皮肤
+      // dataset.theme 对应 HTML 里的 data-theme 属性（dataset 是所有 data-* 属性的集合）
+      localStorage.setItem('snakeTheme', t);        // 存档，下次打开还是这个主题
+
+      // 按钮文字跟着变。这里用了“三元运算符”，是 if/else 的简写：
+      //   条件 ? 条件成立时的值 : 条件不成立时的值
+      // 读作：t === 'dark' 吗？是 → '切换浅色'，否 → '切换深色'
+      document.getElementById('themeBtn').textContent = t === 'dark' ? '切换浅色' : '切换深色';
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.4 读取 / 保存统计数据（最高分、局数、战绩）                        */
+    /* ------------------------------------------------------------------- */
+
+    function loadStats() {
+      // Number(...)：把括号里的东西转成数字；存档读出来都是字符串（文字），要转回数字
+      highScore = Number(localStorage.getItem('snakeHigh') || 0);
+      gamesPlayed = Number(localStorage.getItem('snakeGames') || 0);
+
+      // try { ... } catch (e) { ... }：先尝试执行 try 里的代码，
+      // 万一出错（比如存档内容损坏），就跳到 catch 里兜底，不会让整个游戏崩掉
+      try {
+        // JSON.parse：把存档里的文字还原成 JS 数组/对象（JSON 是数据的文字格式）
+        // 读不到时默认 '[]'：空数组的文字形式
+        history = JSON.parse(localStorage.getItem('snakeHistory') || '[]');
+        // Array.isArray(...)：检查它是不是一个数组；不是（被人改坏了）就重置为空数组
+        if (!Array.isArray(history)) history = [];
+      } catch (e) {
+        history = [];
+      }
+    }
+
+    function saveStats() {
+      localStorage.setItem('snakeHigh', highScore);
+      localStorage.setItem('snakeGames', gamesPlayed);
+      // JSON.stringify：把数组变成文字，才能存进 localStorage（存档只能存文字）
+      localStorage.setItem('snakeHistory', JSON.stringify(history));
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.5 初始化：开始 / 重新开始一局                                      */
+    /* ------------------------------------------------------------------- */
+    function init() {
+      // 蛇身数组，里面每个 {x, y} 是一节身体；snake[0] 是蛇头
+      // 一开始有 3 节，在同一排（10,10）（9,10）（8,10）
+      snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+
+      dir = { x: 1, y: 0 };   // 初始方向向右：x=1 表示每走一步横坐标+1。方向只能是 0、1、-1
+      score = 0;              // 分数清零
+      paused = false;         // 不暂停
+      gameOver = false;       // 没结束
+      roundEnded = false;     // 本局未结束
+      aiMode = true;          // 默认 AI 自动玩
+      document.getElementById('aiToggleBtn').textContent = '切换手动';
+      eaten = 0;              // 已吃清零
+      pendingDirs = [];       // 清空方向排队区
+      placeFood();            // 随机放一个食物（函数在后面定义）
+      updateStatus();         // 刷新分数栏
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.6 一局结束 / 重置全部                                              */
+    /* ------------------------------------------------------------------- */
+
+    // endRound(success)：success=true 表示吃满15个成功，false 表示撞死
+    function endRound(success) {
+      if (roundEnded) return;     // 已经结束过就直接退出（return 后面的代码不再执行）
+      roundEnded = true;
+      if (!success) gameOver = true;   // 不成功才标记 gameOver（成功时画面显示胜利字样）
+
+      if (score > highScore) highScore = score;  // 破纪录就更新最高分
+      gamesPlayed++;                            // 局数 +1（++ 是自增1的简写）
+
+      // history.push(...)：往战绩数组末尾添加一条新记录
+      history.push({
+        no: gamesPlayed,                        // 第几局
+        success: success,                      // 成功还是失败
+        score: score,                          // 得分
+        time: new Date().toLocaleString()      // 当前时间，转成本地格式的文字
+      });
+      if (history.length > 10) history.shift();  // 超过10条就删掉最早的一条（shift 删数组开头）
+      saveStats();
+      updateStatus();
+    }
+
+    function resetAll() {
+      // confirm(...)：弹出一个“确定/取消”对话框；点取消得到 false，就 return 不执行
+      if (!confirm('确定清空最高分、局数和最近 10 局战绩吗？')) return;
+      highScore = 0;
+      gamesPlayed = 0;
+      history = [];
+      saveStats();
+      init();
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.7 放食物 / 刷新分数栏                                              */
+    /* ------------------------------------------------------------------- */
+    function placeFood() {
+      // do { ... } while (条件)：先执行一次，再检查条件，成立就重复
+      do {
+        // Math.random()：生成 0~1 的随机小数
+        // × GRID（20）后范围 0~20；Math.floor 向下取整 → 得到 0~19 的格子编号
+        food = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+      } while (snake.some(s => s.x === food.x && s.y === food.y));
+      // snake.some(...)：检查蛇身“是否至少有一节”满足条件
+      // 箭头函数 s => ... 是 function(s){...} 的简写；s 代表数组里的每一节
+      // 如果食物正好落在蛇身上，条件成立 → 重新随机，直到不重叠
+    }
+
+    function updateStatus() {
+      // textContent：元素里显示的纯文字
+      // 反引号 `...` 叫“模板字符串”，里面 ${变量} 会被替换成变量的值（就像填空题）
+      // ｜ 只是一个分隔符号；最右边的 ${...} 里又嵌套了三元运算符：
+      //   任务模式 → '/15'，无尽模式 → '（无尽）'
+      document.getElementById('status').textContent =
+        `得分：${score} ｜ 最高分：${highScore} ｜ 局数：${gamesPlayed} ｜ 已吃：${eaten}${taskMode ? '/15' : '（无尽）'}`;
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.8 画图：每一帧把整个画面重画一遍（动画的基本套路）                 */
+    /* ------------------------------------------------------------------- */
+    function draw() {
+      ctx.clearRect(0, 0, 400, 400);   // 清空画布：从(0,0)开始清 400×400，否则上一帧会残留
+
+      ctx.fillStyle = colors.food;     // 选颜色：fillStyle 是“接下来填充用的颜色”
+      // fillRect：画一个实心方块（x, y, 宽, 高）；坐标要 ×box 换算成像素
+      // box - 2：方块画小 2 像素，格子之间留出缝隙
+      ctx.fillRect(food.x * box, food.y * box, box - 2, box - 2);
+
+      // forEach：把数组每一项轮流拿出来执行一次；(s, i) 里 s 是这一节，i 是序号（从0开始）
+      snake.forEach((s, i) => {
+        // 三元运算符：序号 i === 0（蛇头）用 head 色，否则用 body 色
+        ctx.fillStyle = i === 0 ? colors.head : colors.body;
+        ctx.fillRect(s.x * box, s.y * box, box - 2, box - 2);
+      });
+
+      // 撞死时：盖一层半透明蒙版，写“游戏结束”
+      if (gameOver) {
+        ctx.fillStyle = colors.overlay;
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.fillStyle = colors.text;
+        ctx.font = '28px sans-serif';     // font：设置字号和字体
+        ctx.textAlign = 'center';         // 文字居中对齐
+        ctx.fillText('游戏结束', 200, 190);   // fillText(文字, x, y)：在指定坐标写字
+        ctx.font = '18px sans-serif';
+        ctx.fillText('按 R 重新开始', 200, 230);
+      }
+
+      // 暂停时（且本局没结束）：显示“已暂停”。&& 表示“并且”
+      if (paused && !roundEnded) {
+        ctx.fillStyle = colors.overlay;
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.fillStyle = colors.text;
+        ctx.font = '24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('已暂停', 200, 210);
+      }
+
+      // 任务模式吃满 15 个且没撞死：显示胜利字样
+      if (taskMode && eaten >= 15 && !gameOver) {
+        ctx.fillStyle = colors.overlay;
+        ctx.fillRect(0, 0, 400, 400);
+        ctx.fillStyle = colors.success;
+        ctx.font = '28px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('已连续吃 15 个！', 200, 190);
+        ctx.font = '18px sans-serif';
+        ctx.fillStyle = colors.text;
+        ctx.fillText('按 R 重新开始', 200, 230);
+      }
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.9 AI 大脑（这一部分最难，看不懂可以先跳过，不影响玩）              */
+    /*                                                                     */
+    /* 用到三个搜索工具：                                                  */
+    /*   getNeighbors  ：找一个格子的上下左右“合法邻居”                    */
+    /*   bfsPath       ：BFS 广度优先搜索，像水波扩散一样找最短路线        */
+    /*   getReachableSpace：从某格出发最多能走到多少格（衡量困不困）       */
+    /* ------------------------------------------------------------------- */
+
+    // 找邻居：pos 是当前格，obstacles 是不能走的障碍数组
+    function getNeighbors(pos, obstacles) {
+      // 四个方向的数组：上、下、左、右
+      const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+
+      // .map(...)：把数组每一项“变换”成新项，返回同样长度的新数组
+      // 这里把每个方向加成邻居坐标
+      return dirs.map(d => ({ x: pos.x + d.x, y: pos.y + d.y }))
+        // .filter(...)：筛选，只保留满足条件的项（条件为 true 才留下）
+        .filter(p =>
+          // 条件1：在棋盘范围内（x、y 都在 0~19）
+          p.x >= 0 && p.x < GRID && p.y >= 0 && p.y < GRID
+          // 条件2：不能落在任何一个障碍上。some 只要有一个重合就不行，加 ! 表示“没有”
+          && !obstacles.some(o => o.x === p.x && o.y === p.y)
+        );
+    }
+
+    // BFS 找路：start 起点，target 目标，obstacles 障碍；返回路线数组，走不通返回 null
+    function bfsPath(start, target, obstacles) {
+      const queue = [start];          // 队列：待检查的格子（像排队，先进先出）
+      // Set：不重复的集合。这里记录“已经访问过的格子”，避免绕圈
+      // 格子是对象不能直接比，所以转成 "x,y" 这样的文字当钥匙
+      const visited = new Set([`${start.x},${start.y}`]);
+      // Map：“钥匙→值”的对照表。这里记录每个格子是从哪个格子走来的（用来最后拼路线）
+      const parent = new Map();
+
+      // while (queue.length)：只要队列还有东西就继续（length 为 0 时循环结束）
+      while (queue.length) {
+        const cur = queue.shift();   // 取出队首格子（shift 删数组开头并取出）
+
+        // 到达目标：顺着 parent 往回追溯，拼出完整路线
+        if (cur.x === target.x && cur.y === target.y) {
+          const path = [];
+          let node = cur;
+          while (node) {             // node 有值就继续；追溯到起点的上一级（undefined）时停
+            path.unshift(node);      // unshift：加到数组开头（拼出来的路线才是正序）
+            node = parent.get(`${node.x},${node.y}`);  // 找上一级
+          }
+          return path;
+        }
+
+        // for...of：遍历邻居集合，nb 依次代表每个邻居
+        for (const nb of getNeighbors(cur, obstacles)) {
+          const key = `${nb.x},${nb.y}`;
+          if (!visited.has(key)) {    // 还没访问过（has 检查集合里有没有）
+            visited.add(key);         // 标记已访问
+            parent.set(key, cur);     // 记录它从 cur 走来
+            queue.push(nb);           // 排进队尾，稍后继续扩散
+          }
+        }
+      }
+      return null;   // 队列空了还没到目标 = 走不通
+    }
+
+    // 计算从 start 出发能到达多少格（洪水填满），数字越大越宽敞
+    function getReachableSpace(start, obstacles) {
+      const queue = [start];
+      const visited = new Set([`${start.x},${start.y}`]);
+      while (queue.length) {
+        const cur = queue.shift();
+        for (const nb of getNeighbors(cur, obstacles)) {
+          const key = `${nb.x},${nb.y}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            queue.push(nb);
+          }
+        }
+      }
+      return visited.size;   // size：集合里元素的个数 = 能走到的格子数
+    }
+
+    /* 评估“沿方向 d 走一步”是否安全，返回评估报告；不安全返回 null */
+    function evaluateMove(d) {
+      const head = snake[0];
+      const next = { x: head.x + d.x, y: head.y + d.y };   // 走一步后的新蛇头位置
+
+      // 撞墙：任何一个坐标出界就不行。|| 表示“或者”
+      if (next.x < 0 || next.x >= GRID || next.y < 0 || next.y >= GRID) return null;
+
+      const eats = (next.x === food.x && next.y === food.y);  // 这一步会不会吃到食物
+
+      // 三元：吃食物时整条蛇都是障碍；不吃时尾巴马上会移走，用 slice(0,-1) 排除尾巴
+      // slice(0, -1)：取数组第0项到倒数第2项（-1 指最后一项），即“不含尾巴”
+      const bodyToCheck = eats ? snake : snake.slice(0, -1);
+
+      if (bodyToCheck.some(s => s.x === next.x && s.y === next.y)) return null;  // 撞身体
+
+      // ... 叫“展开运算符”：...snake 把数组里的元素一个个摊开
+      // [next, ...snake] = 新头 + 原整条蛇（吃食物，变长）
+      // 不吃则 [next, ...snake.slice(0,-1)] = 新头 + 去掉尾巴的身体
+      const newSnake = eats ? [next, ...snake] : [next, ...snake.slice(0, -1)];
+
+      const newHead = newSnake[0];
+      const newTail = newSnake[newSnake.length - 1];       // 最后一项是新尾巴
+      const bodyObstacles = newSnake.slice(1, -1);         // 寻路障碍：去掉新头和新尾巴的中间段
+
+      // 走完后蛇头还能不能找到自己的尾巴（能 = 吃完还能脱身，最关键的安全指标）
+      const canReachTail = bfsPath(newHead, newTail, bodyObstacles) !== null;
+
+      const space = getReachableSpace(newHead, newSnake.slice(1));  // 新头能活动的空间
+
+      // 曼哈顿距离：横纵距离之和（不用绕路的直线步数估计）
+      // Math.abs：取绝对值
+      const distToFood = Math.abs(next.x - food.x) + Math.abs(next.y - food.y);
+
+      return { d, next, eats, canReachTail, space, distToFood };  // 返回一个“评估报告”对象
+    }
+
+    /* 模拟“沿整条路线走到食物”，走完后还能不能摸到尾巴（决定这食物值不值得吃）*/
+    function isFoodPathSafe(path) {
+      // .map 复制出一条新蛇（s => ({x,y}) 造一个新对象，避免改动真蛇）
+      let sim = snake.map(s => ({ x: s.x, y: s.y }));
+
+      for (let i = 1; i < path.length; i++) {   // path[0] 是当前蛇头，从第1步开始模拟
+        const cell = path[i];
+        const eats = (cell.x === food.x && cell.y === food.y);
+        sim = [cell, ...sim];      // 加新头
+        if (!eats) sim.pop();      // 没吃食物就删尾巴（pop 删数组末尾）
+      }
+      const h = sim[0], t = sim[sim.length - 1];
+      return bfsPath(h, t, sim.slice(1, -1)) !== null;  // 走完能摸到尾巴才算安全
+    }
+
+    /* AI 真正做决定的地方，返回它选择的方向 */
+    function aiMove() {
+      const head = snake[0];
+      const tail = snake[snake.length - 1];
+      const bodyWithoutTail = snake.slice(0, -1);
+      const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+
+      // 把四个方向都评估一遍，再 filter 掉 null（不安全的方向）
+      const moves = dirs.map(d => evaluateMove(d)).filter(m => m !== null);
+      if (moves.length === 0) return { x: 0, y: 0 };   // 没有安全步，返回“不动”（听天由命）
+
+      // 策略1：能安全吃到食物，就沿 BFS 最短路去吃
+      const foodPath = bfsPath(head, food, bodyWithoutTail);
+      if (foodPath && foodPath.length > 1 && isFoodPathSafe(foodPath)) {
+        const next = foodPath[1];   // 路线第1格是下一步落点（第0格是自己）
+        // .find：在数组里找第一个满足条件的项
+        const mv = moves.find(m => m.next.x === next.x && m.next.y === next.y);
+        if (mv) return mv.d;
+      }
+
+      // 策略2：追自己的尾巴（最安全的走位，让身体重新舒展）
+      const tailPath = bfsPath(head, tail, bodyWithoutTail);
+      if (tailPath && tailPath.length > 1) {
+        const next = tailPath[1];
+        const mv = moves.find(m => m.next.x === next.x && m.next.y === next.y);
+        if (mv && mv.canReachTail) return mv.d;
+      }
+
+      // 策略3：在“能摸到尾巴”的安全步里，选活动空间最大的
+      const safeMoves = moves.filter(m => m.canReachTail);
+      if (safeMoves.length > 0) {
+        // sort：排序。括号里 (a,b) => b.space - a.space 表示按 space 从大到小排
+        safeMoves.sort((a, b) => b.space - a.space);
+        return safeMoves[0].d;
+      }
+
+      // 策略4：实在没有安全步（快被困死），选空间最大的方向尽量拖延
+      moves.sort((a, b) => b.space - a.space);
+      return moves[0].d;
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.10 走一步：更新所有数据（移动、吃食物、判生死）                    */
+    /* ------------------------------------------------------------------- */
+    function step() {
+      if (paused || roundEnded) return;   // 暂停或已结束就不动
+
+      // —— 方向排队区消费：在真正走步的这一刻才决定方向 ——
+      while (pendingDirs.length > 0) {
+        const nd = pendingDirs.shift();                       // 取出排队的下一个方向
+        const isOpposite = (nd.x === -dir.x && nd.y === -dir.y);  // 是否反方向（会掉头）
+        const isSame = (nd.x === dir.x && nd.y === dir.y);        // 是否和现在方向一样
+        // 既不掉头也不重复 → 采用它，break 跳出循环；掉头/重复就丢弃，继续看下一个
+        if (!isOpposite && !isSame) { dir = nd; break; }
+      }
+
+      // AI 模式：让电脑选方向
+      if (aiMode) {
+        const d = aiMove();
+        if (d.x !== 0 || d.y !== 0) dir = d;   // AI 返回“不动”时保持原方向
+      }
+
+      // 算出新蛇头坐标
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+      // 撞墙判定
+      if (head.x < 0 || head.x >= GRID || head.y < 0 || head.y >= GRID) {
+        endRound(false);
+        return;
+      }
+
+      const eatsNow = (head.x === food.x && head.y === food.y);
+      const bodyToCheck = eatsNow ? snake : snake.slice(0, -1);  // 不吃食物时赦免尾巴
+      if (bodyToCheck.some(s => s.x === head.x && s.y === head.y)) {  // 撞身体
+        endRound(false);
+        return;
+      }
+
+      snake.unshift(head);   // 新蛇头加到数组最前面（这一步蛇变长了一节）
+
+      if (head.x === food.x && head.y === food.y) {  // 吃到食物
+        score++;
+        eaten++;
+        if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }  // 立刻存档最高分
+        updateStatus();
+        placeFood();
+        if (taskMode && eaten >= 15) endRound(true);   // 任务模式吃满 → 成功结束
+      } else {
+        snake.pop();           // 没吃到：删掉最后一节尾巴，长度不变 = 整体向前移动
+      }
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.11 渲染战绩列表（点开“查看战绩”时用）                              */
+    /* ------------------------------------------------------------------- */
+    function renderHistory() {
+      const boxEl = document.getElementById('historyList');
+      if (history.length === 0) {
+        // innerHTML：元素内部的 HTML 内容，可以直接塞标签进去
+        boxEl.innerHTML = '<div id="emptyHistory">暂无战绩，快去玩一局吧。</div>';
+        return;
+      }
+      // history.slice().reverse()：先复制一份再倒序（最新的在最上面），不破坏原数组
+      // .map 把每条记录变成一段 HTML，最后 .join('') 拼成一大段文字
+      boxEl.innerHTML = history.slice().reverse().map(r => {
+        // 成功显示绿色，失败显示红色（三元）
+        const result = r.success
+          ? '<span class="win">成功（15/15）</span>'
+          : '<span class="lose">失败</span>';
+        // 模板字符串拼出一整行标签；${result} 里装着上面的 span
+        return `<div class="record-row">
+          <span>第 ${r.no} 局 ${result}</span>
+          <span>得分 ${r.score}</span>
+          <span class="meta">${r.time}</span>
+        </div>`;
+      }).join('');
+      // join('')：把数组用“空字符串”连成一个字符串（不写的话默认用逗号连接）
+    }
+
+    // 先把弹窗元素找好（下面多个地方都要用）
+    const historyModal = document.getElementById('historyModal');
+
+    /* ------------------------------------------------------------------- */
+    /* 4.12 键盘事件                                                        */
+    /* addEventListener('keydown', e => {...})：                           */
+    /*   监听“按下键盘”，一旦按下就执行 { } 里的代码；                      */
+    /*   e 是这次事件的对象，里面装着按了哪个键等信息                       */
+    /* ------------------------------------------------------------------- */
+    document.addEventListener('keydown', e => {
+      if (e.key === 'l' || e.key === 'L') {   // e.key：按下的键对应的字符
+        fastMode = true;
+        startLoop();
+      }
+      if (e.key === ' ' && !roundEnded) {     // 空格暂停（并且本局没结束）
+        paused = !paused;                     // ! 取反：暂停↔继续 互相切换
+        e.preventDefault();                   // 阻止空格的默认行为（页面往下滚）
+      }
+      if (e.key === 'r' || e.key === 'R') init();   // R 重开
+
+      // 手动模式才处理方向键
+      if (!aiMode) {
+        // 嵌套三元运算符：一层层判断按的是哪个键，得到对应方向；都不是就得到 null
+        const nd =
+          (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') ? { x: 0, y: -1 } :
+            (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') ? { x: 0, y: 1 } :
+              (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') ? { x: -1, y: 0 } :
+                (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') ? { x: 1, y: 0 } : null;
+        // 有方向且排队区少于2个时才排进去（限制队列长度，避免按太多积压）
+        if (nd && pendingDirs.length < 2) pendingDirs.push(nd);
+      }
+    });
+
+    // keyup：松开键盘时
+    document.addEventListener('keyup', e => {
+      if (e.key === 'l' || e.key === 'L') {
+        fastMode = false;
+        startLoop();
+      }
+    })
+
+    /* ------------------------------------------------------------------- */
+    /* 4.13 鼠标事件                                                        */
+    /* e.button：0=左键 1=中键(滚轮) 2=右键                                */
+    /* ------------------------------------------------------------------- */
+    document.addEventListener('mousedown', e => {
+      if (e.button === 0) {                 // 按下左键
+        const now = Date.now();             // Date.now()：当前时刻的毫秒时间戳
+        if (now - lastMouseDownTime < 300) spfastMode = true;  // 距上次按下<300ms = 双击 → 超级加速
+        lastMouseDownTime = now;
+        fastMode = true;                    // 单击按住 = 普通加速
+        startLoop();
+      }
+      if (e.button === 2) {                 // 按下右键
+        spfastMode = true;
+        startLoop();
+      }
+      if (e.button === 1) { e.preventDefault(); toggleAiMode(); }  // 中键：切手动/自动
+    });
+
+    document.addEventListener('mouseup', e => {
+      if (e.button === 0) {                 // 松开左键：两种加速全关
+        fastMode = false;
+        spfastMode = false;
+        startLoop();
+      }
+      if (e.button === 2) {                 // 松开右键：关超级加速
+        spfastMode = false;
+        startLoop();
+      }
+    });
+
+    // 屏蔽右键菜单：菜单由 contextmenu 专属事件触发，想拦谁就得监听谁本人
+    document.addEventListener('contextmenu', e => {
+      e.preventDefault();
+    });
+
+    /* ------------------------------------------------------------------- */
+    /* 4.14 工具栏按钮事件                                                  */
+    /* ------------------------------------------------------------------- */
+
+    // addEventListener 第二个参数直接写函数名 init（不加括号），表示“点击时再调用它”
+    document.getElementById('restartBtn').addEventListener('click', init);
+    document.getElementById('resetBtn').addEventListener('click', resetAll);
+
+    // 主题按钮：() => {...} 箭头函数，点一下在深浅间切换
+    document.getElementById('themeBtn').addEventListener('click', () => {
+      applyTheme(theme === 'dark' ? 'light' : 'dark');
+    });
+
+    document.getElementById('modeBtn').addEventListener('click', toggleGameMode);
+    document.getElementById('aiToggleBtn').addEventListener('click', toggleAiMode);
+
+    // 战绩按钮：先渲染内容，再移除 hidden 类让弹窗显示
+    document.getElementById('historyBtn').addEventListener('click', () => {
+      renderHistory();
+      historyModal.classList.remove('hidden');
+      // classList：元素“类名清单”的管家；remove=删类，add=加类
+    });
+
+    document.getElementById('closeHistory').addEventListener('click', () => {
+      historyModal.classList.add('hidden');
+    });
+
+    // 点遮罩空白处也关闭：e.target 是你真正点中的元素，点中的就是遮罩本身时才关
+    historyModal.addEventListener('click', e => {
+      if (e.target === historyModal) historyModal.classList.add('hidden');
+    });
+
+    /* ------------------------------------------------------------------- */
+    /* 4.15 游戏循环（闹钟）+ 倍速显示与输入                                */
+    /* ------------------------------------------------------------------- */
+
+    // 启动（或重启）循环：先销毁旧闹钟，再按当前速度建新闹钟
+    function startLoop() {
+      clearInterval(gameTimer);    // 销毁旧闹钟（clearInterval 停止 setInterval），避免多个闹钟打架
+      let speed;
+      // 三档速度的优先级：超级加速 > 普通加速 > 用户自定义速度
+      if (spfastMode) {
+        speed = 1;                 // 1ms 一步（×80）
+      } else if (fastMode) {
+        speed = 40;                // 40ms 一步（×2）
+      } else {
+        speed = userSpeed;         // 用户平时设定的速度
+      }
+      updateSpeedDisplay(speed);   // 刷新倍速面板数字
+      // setInterval(函数, 毫秒)：每隔指定毫秒就调用一次函数 → 这就是游戏循环
+      // 每一步先 step() 更新数据，再 draw() 画出最新画面（顺序不能反）
+      gameTimer = setInterval(() => { step(); draw(); }, speed);
+    }
+
+    // 格式化倍速数字：整数直接显示，小数最多保留两位，避免出现 0.33333...
+    function formatMult(m) {
+      // Number.isInteger：判断是不是整数
+      // Math.round：四舍五入；×100 取整再 ÷100 = 保留两位小数
+      return Number.isInteger(m) ? String(m) : String(Math.round(m * 100) / 100);
+      // String(...)：转成文字
+    }
+
+    // 把倍速写进面板。倍速 = 80 ÷ 当前每步毫秒数（80ms 定义为 ×1）
+    function updateSpeedDisplay(speed) {
+      document.getElementById('speedValue').textContent = '×' + formatMult(80 / speed);
+    }
+
+    // 点“应用”（或在输入框按回车）时执行
+    function applyInputSpeed() {
+      const input = document.getElementById('speedInput');
+      const mult = parseFloat(input.value);   // parseFloat：把输入的文字转成小数
+      // isFinite：是不是“有效数字”（排除文字、无穷）；还要 > 0
+      if (!isFinite(mult) || mult <= 0) {
+        input.value = formatMult(80 / userSpeed);  // 非法输入：弹回当前真实倍速
+        return;
+      }
+      // 倍速换算成间隔：80 ÷ 倍速；Math.max(1, ...) 保证最快不小于 1ms
+      userSpeed = Math.max(1, 80 / mult);
+      startLoop();
+      input.value = formatMult(80 / userSpeed);   // 输入框同步为规范化后的数字
+    }
+
+    document.getElementById('speedApplyBtn').addEventListener('click', applyInputSpeed);
+
+    // 在输入框里的按键：stopPropagation 阻止事件继续冒泡到页面，
+    // 这样在框里按方向键、空格、R 都不会被游戏的全局监听器收到
+    document.getElementById('speedInput').addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter') applyInputSpeed();
+    });
+
+    /* ------------------------------------------------------------------- */
+    /* 4.16 两个模式切换函数                                                */
+    /* ------------------------------------------------------------------- */
+
+    // 手动 ↔ 自动
+    function toggleAiMode() {
+      aiMode = !aiMode;     // 取反切换
+      document.getElementById('aiToggleBtn').textContent = aiMode ? '切换手动' : '切换自动';
+    }
+
+    // 任务模式 ↔ 无尽模式
+    function toggleGameMode() {
+      taskMode = !taskMode;
+      localStorage.setItem('snakeTaskMode', taskMode ? 'task' : 'endless');  // 存档偏好
+      document.getElementById('modeBtn').textContent = taskMode ? '切换无尽' : '切换任务';
+      updateStatus();
+      // 特殊情况：无尽里已经吃了≥15个，这时切回任务 → 立刻判定成功
+      if (taskMode && eaten >= 15) endRound(true);
+    }
+
+    /* ------------------------------------------------------------------- */
+    /* 4.17 启动！网页加载到这里，游戏正式开始                              */
+    /* ------------------------------------------------------------------- */
+    loadStats();                          // 先读存档
+    applyTheme(theme);                    // 应用上次的主题
+    document.getElementById('modeBtn').textContent = taskMode ? '切换无尽' : '切换任务';
+    init();                               // 初始化第一局
+    startLoop();                          // 启动游戏循环
+  </script>
+</body>
+
+</html>
