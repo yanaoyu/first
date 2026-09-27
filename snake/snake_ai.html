@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
   <meta charset="UTF-8">
   <title>贪吃蛇 · 阶段二 AI 自动演示</title>
   <style>
-    /* 深色主题（默认） */
     body[data-theme="dark"] {
       --bg: #1a1a2e;
       --panel: #16213e;
@@ -19,7 +17,6 @@
       --row-alt: #1b294a;
     }
 
-    /* 浅色主题 */
     body[data-theme="light"] {
       --bg: #eef1f6;
       --panel: #ffffff;
@@ -68,7 +65,7 @@
       color: var(--btn-text);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 7px 14px;
+      padding: 7px 4px;
       font-size: 14px;
       cursor: pointer;
       transition: filter 0.15s, transform 0.05s;
@@ -93,7 +90,6 @@
       margin-top: 10px;
     }
 
-    /* 战绩弹窗 */
     .modal {
       position: fixed;
       inset: 0;
@@ -173,19 +169,19 @@
     }
   </style>
 </head>
-
 <body data-theme="dark">
   <h1>贪吃蛇 · AI 自动演示</h1>
   <div id="status">得分：0 ｜ 最高分：0 ｜ 局数：0 ｜ 已吃：0/15</div>
   <div class="toolbar">
     <button id="restartBtn" type="button">重开一局</button>
     <button id="themeBtn" type="button">切换浅色</button>
+    <button id="modeBtn" type="button">切换无尽</button>
+    <button id="aiToggleBtn" type="button">切换手动</button>
     <button id="historyBtn" type="button">查看战绩</button>
     <button id="resetBtn" type="button">重置</button>
   </div>
   <canvas id="game" width="400" height="400"></canvas>
-  <div id="tip">AI 自动运行 ｜ 按 A 切换手动/自动 ｜ 空格暂停 ｜ R 重开</div>
-
+  <div id="tip">AI 自动运行 ｜ 中键或按钮 切手动/自动 ｜ 空格暂停 ｜ R 重开 ｜ 按住左键加速 右键按住=超级加速</div>
   <div id="historyModal" class="modal hidden">
     <div class="modal-box">
       <h2>最近 10 局战绩</h2>
@@ -199,11 +195,15 @@
     const box = 20;
     const GRID = 20;
     let snake, dir, food, score, highScore, paused, gameOver, aiMode, eaten;
-    let roundEnded = false;          // 本局是否已结束（防止重复记录）
-    let gamesPlayed = 0;             // 总局数（跨刷新保留）
-    let history = [];                // 最近 10 局战绩
-
-    // 两套主题的画布配色（DOM 配色由 CSS 变量控制）
+    let fastMode = false;
+    let spfastMode = false;
+    let gameTimer;
+    let lastMouseDownTime = 0;
+    let pendingDirs = [];
+    let taskMode = (localStorage.getItem('snakeTaskMode') || 'task') === 'task';
+    let roundEnded = false;
+    let gamesPlayed = 0;
+    let history = [];
     const THEMES = {
       dark: { food: '#e94560', head: '#0c93e7', body: '#4ea8de', overlay: 'rgba(0,0,0,0.65)', text: '#ffffff', success: '#27e85f' },
       light: { food: '#d63352', head: '#0a82d4', body: '#79b8e6', overlay: 'rgba(0,0,0,0.55)', text: '#ffffff', success: '#2ecc40' }
@@ -236,7 +236,6 @@
       localStorage.setItem('snakeHistory', JSON.stringify(history));
     }
 
-    // 仅开启新一局；最高分、局数、战绩均不清零
     function init() {
       snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
       dir = { x: 1, y: 0 };
@@ -245,12 +244,13 @@
       gameOver = false;
       roundEnded = false;
       aiMode = true;
+      document.getElementById('aiToggleBtn').textContent = '切换手动';
       eaten = 0;
+      pendingDirs = [];
       placeFood();
       updateStatus();
     }
 
-    // 一局结束：success=true 表示连续吃满 15 个
     function endRound(success) {
       if (roundEnded) return;
       roundEnded = true;
@@ -268,7 +268,6 @@
       updateStatus();
     }
 
-    // 重置全部统计数据（最高分 / 局数 / 战绩），并开启新一局
     function resetAll() {
       if (!confirm('确定清空最高分、局数和最近 10 局战绩吗？')) return;
       highScore = 0;
@@ -286,7 +285,7 @@
 
     function updateStatus() {
       document.getElementById('status').textContent =
-        `得分：${score} ｜ 最高分：${highScore} ｜ 局数：${gamesPlayed} ｜ 已吃：${eaten}/15`;
+        `得分：${score} ｜ 最高分：${highScore} ｜ 局数：${gamesPlayed} ｜ 已吃：${eaten}${taskMode ? '/15' : '（无尽）'}`;
     }
 
     function draw() {
@@ -315,13 +314,13 @@
         ctx.textAlign = 'center';
         ctx.fillText('已暂停', 200, 210);
       }
-      if (eaten >= 15 && !gameOver) {
+      if (taskMode && eaten >= 15 && !gameOver) {
         ctx.fillStyle = colors.overlay;
         ctx.fillRect(0, 0, 400, 400);
         ctx.fillStyle = colors.success;
         ctx.font = '28px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('AI 已连续吃 15 个！', 200, 190);
+        ctx.fillText('已连续吃 15 个！', 200, 190);
         ctx.font = '18px sans-serif';
         ctx.fillStyle = colors.text;
         ctx.fillText('按 R 重新开始', 200, 230);
@@ -331,7 +330,10 @@
     function getNeighbors(pos, obstacles) {
       const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
       return dirs.map(d => ({ x: pos.x + d.x, y: pos.y + d.y }))
-        .filter(p => p.x >= 0 && p.x < GRID && p.y >= 0 && p.y < GRID && !obstacles.some(o => o.x === p.x && o.y === p.y));
+        .filter(p =>
+          p.x >= 0 && p.x < GRID && p.y >= 0 && p.y < GRID
+          && !obstacles.some(o => o.x === p.x && o.y === p.y)
+        );
     }
 
     function bfsPath(start, target, obstacles) {
@@ -377,30 +379,23 @@
       return visited.size;
     }
 
-    // 评估单步移动后的安全状态
     function evaluateMove(d) {
       const head = snake[0];
       const next = { x: head.x + d.x, y: head.y + d.y };
       if (next.x < 0 || next.x >= GRID || next.y < 0 || next.y >= GRID) return null;
-
       const eats = (next.x === food.x && next.y === food.y);
-      // 不吃食物时尾巴会移走，所以尾巴格子可通行；吃食物时尾巴不动
       const bodyToCheck = eats ? snake : snake.slice(0, -1);
       if (bodyToCheck.some(s => s.x === next.x && s.y === next.y)) return null;
-
       const newSnake = eats ? [next, ...snake] : [next, ...snake.slice(0, -1)];
       const newHead = newSnake[0];
       const newTail = newSnake[newSnake.length - 1];
-      // 头尾之间的身体是障碍（尾巴格子本身可作为目标/通行）
       const bodyObstacles = newSnake.slice(1, -1);
       const canReachTail = bfsPath(newHead, newTail, bodyObstacles) !== null;
       const space = getReachableSpace(newHead, newSnake.slice(1));
       const distToFood = Math.abs(next.x - food.x) + Math.abs(next.y - food.y);
-
       return { d, next, eats, canReachTail, space, distToFood };
     }
 
-    // 模拟沿整条食物路径移动后，能否仍到达自己的尾巴（决定是否值得去吃）
     function isFoodPathSafe(path) {
       let sim = snake.map(s => ({ x: s.x, y: s.y }));
       for (let i = 1; i < path.length; i++) {
@@ -418,41 +413,37 @@
       const tail = snake[snake.length - 1];
       const bodyWithoutTail = snake.slice(0, -1);
       const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
-
-      // 评估所有合法移动
       const moves = dirs.map(d => evaluateMove(d)).filter(m => m !== null);
       if (moves.length === 0) return { x: 0, y: 0 };
-
-      // 1. 只有当吃完食物后仍能到达尾巴时，才沿 BFS 路径去吃
       const foodPath = bfsPath(head, food, bodyWithoutTail);
       if (foodPath && foodPath.length > 1 && isFoodPathSafe(foodPath)) {
         const next = foodPath[1];
         const mv = moves.find(m => m.next.x === next.x && m.next.y === next.y);
         if (mv) return mv.d;
       }
-
-      // 2. 追尾巴：最安全的走位，让身体重新舒展
       const tailPath = bfsPath(head, tail, bodyWithoutTail);
       if (tailPath && tailPath.length > 1) {
         const next = tailPath[1];
         const mv = moves.find(m => m.next.x === next.x && m.next.y === next.y);
         if (mv && mv.canReachTail) return mv.d;
       }
-
-      // 3. 在所有“能到达尾巴”的安全移动中，选剩余空间最大的
       const safeMoves = moves.filter(m => m.canReachTail);
       if (safeMoves.length > 0) {
         safeMoves.sort((a, b) => b.space - a.space);
         return safeMoves[0].d;
       }
-
-      // 4. 没有安全移动（即将被困）：选剩余空间最大的方向尽量拖延
       moves.sort((a, b) => b.space - a.space);
       return moves[0].d;
     }
 
     function step() {
       if (paused || roundEnded) return;
+      while (pendingDirs.length > 0) {
+        const nd = pendingDirs.shift();
+        const isOpposite = (nd.x === -dir.x && nd.y === -dir.y);
+        const isSame = (nd.x === dir.x && nd.y === dir.y);
+        if (!isOpposite && !isSame) { dir = nd; break; }
+      }
       if (aiMode) {
         const d = aiMove();
         if (d.x !== 0 || d.y !== 0) dir = d;
@@ -462,7 +453,6 @@
         endRound(false);
         return;
       }
-      // 不吃食物时尾巴会移走，所以撞到尾巴不算死亡；吃食物时尾巴不动，必须检查全身
       const eatsNow = (head.x === food.x && head.y === food.y);
       const bodyToCheck = eatsNow ? snake : snake.slice(0, -1);
       if (bodyToCheck.some(s => s.x === head.x && s.y === head.y)) {
@@ -476,13 +466,12 @@
         if (score > highScore) { highScore = score; localStorage.setItem('snakeHigh', highScore); }
         updateStatus();
         placeFood();
-        if (eaten >= 15) endRound(true);
+        if (taskMode && eaten >= 15) endRound(true);
       } else {
         snake.pop();
       }
     }
 
-    // 渲染最近 10 局战绩（最新的在最上面）
     function renderHistory() {
       const boxEl = document.getElementById('historyList');
       if (history.length === 0) {
@@ -500,29 +489,67 @@
         </div>`;
       }).join('');
     }
-
     const historyModal = document.getElementById('historyModal');
-
     document.addEventListener('keydown', e => {
-      if (e.key === 'a' || e.key === 'A') aiMode = !aiMode;
+      if (e.key === 'l' || e.key === 'L') {
+        fastMode = true;
+        startLoop();
+      }
       if (e.key === ' ' && !roundEnded) {
         paused = !paused;
         e.preventDefault();
       }
       if (e.key === 'r' || e.key === 'R') init();
       if (!aiMode) {
-        if (e.key === 'ArrowUp' && dir.y === 0) dir = { x: 0, y: -1 };
-        if (e.key === 'ArrowDown' && dir.y === 0) dir = { x: 0, y: 1 };
-        if (e.key === 'ArrowLeft' && dir.x === 0) dir = { x: -1, y: 0 };
-        if (e.key === 'ArrowRight' && dir.x === 0) dir = { x: 1, y: 0 };
+        const nd =
+          (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') ? { x: 0, y: -1 } :
+            (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') ? { x: 0, y: 1 } :
+              (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') ? { x: -1, y: 0 } :
+                (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') ? { x: 1, y: 0 } : null;
+        if (nd && pendingDirs.length < 2) pendingDirs.push(nd);
       }
     });
-
+    document.addEventListener('keyup', e => {
+      if (e.key === 'l' || e.key === 'L') {
+        fastMode = false;
+        startLoop();
+      }
+    })
+    document.addEventListener('mousedown', e => {
+      if (e.button === 0) {
+        const now = Date.now();
+        if (now - lastMouseDownTime < 300) spfastMode = true;
+        lastMouseDownTime = now;
+        fastMode = true;
+        startLoop();
+      }
+      if (e.button === 2) {
+        spfastMode = true;
+        startLoop();
+      }
+      if (e.button === 1) { e.preventDefault(); toggleAiMode(); }
+    });
+    document.addEventListener('mouseup', e => {
+      if (e.button === 0) {
+        fastMode = false;
+        spfastMode = false;
+        startLoop();
+      }
+      if (e.button === 2) {
+        spfastMode = false;
+        startLoop();
+      }
+    });
+    document.addEventListener('contextmenu', e => {
+      e.preventDefault();
+    });
     document.getElementById('restartBtn').addEventListener('click', init);
     document.getElementById('resetBtn').addEventListener('click', resetAll);
     document.getElementById('themeBtn').addEventListener('click', () => {
       applyTheme(theme === 'dark' ? 'light' : 'dark');
     });
+    document.getElementById('modeBtn').addEventListener('click', toggleGameMode);
+    document.getElementById('aiToggleBtn').addEventListener('click', toggleAiMode);
     document.getElementById('historyBtn').addEventListener('click', () => {
       renderHistory();
       historyModal.classList.remove('hidden');
@@ -534,11 +561,36 @@
       if (e.target === historyModal) historyModal.classList.add('hidden');
     });
 
+    function startLoop() {
+      clearInterval(gameTimer);
+      let speed;
+      if (spfastMode) {
+        speed = 1;
+      } else if (fastMode) {
+        speed = 40;
+      } else {
+        speed = 80;
+      }
+      gameTimer = setInterval(() => { step(); draw(); }, speed);
+    }
+
+    function toggleAiMode() {
+      aiMode = !aiMode;
+      document.getElementById('aiToggleBtn').textContent = aiMode ? '切换手动' : '切换自动';
+    }
+
+    function toggleGameMode() {
+      taskMode = !taskMode;
+      localStorage.setItem('snakeTaskMode', taskMode ? 'task' : 'endless');
+      document.getElementById('modeBtn').textContent = taskMode ? '切换无尽' : '切换任务';
+      updateStatus();
+      if (taskMode && eaten >= 15) endRound(true);
+    }
     loadStats();
     applyTheme(theme);
+    document.getElementById('modeBtn').textContent = taskMode ? '切换无尽' : '切换任务';
     init();
-    setInterval(() => { step(); draw(); }, 80);
+    startLoop();
   </script>
 </body>
-
 </html>
