@@ -1,6 +1,6 @@
 大一考核作品集 README
 ## 一、项目概述
-本项目包含个人网站、贪吃蛇小游戏（含 AI 自动演示及新增功能），以及 Croc RISC-V SoC 进阶挑战。
+本项目已完成：个人网站 + 贪吃蛇 AI（100% 成功率）+ Croc RISC-V SoC 前端 Verilator 仿真与后端 Yosys 综合，并成功生成门级网表 croc_yosys.v。
 
 ### （1）新增/修改了什么及原因：
 
